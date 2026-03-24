@@ -1,57 +1,49 @@
-name: Build Pokémon Emerald ROM
+name: Build Pokemon Emerald ROM
 
-on:
-  workflow_dispatch:
-    inputs:
-      baserom:
-        description: "Upload your baserom.gba file"
-        required: true
-        type: file
+on: 
+  push: 
+    branches: [ main ]
+  pull_request: 
+    branches: [ main ]
 
-jobs:
-  build:
+jobs: 
+  build: 
     runs-on: ubuntu-latest
+    
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            binutils-arm-none-eabi \
+            git \
+            libpng-dev \
+            perl
 
-    # Base-ROM aus Upload wiederherstellen
-    - name: Extract base ROM
-      uses: actions/download-artifact@v3
-      with:
-        name: baserom
-        path: .
+      - name: Build agbcc
+        run: |
+          git clone https://github.com/pret/agbcc.git
+          cd agbcc
+          ./build.sh
+          ./install.sh ../
 
-    - name: Rename base ROM
-      run: mv *.gba baserom.gba
+      - name: Build ROM (classic)
+        run: make -j$(nproc)
 
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y build-essential git automake wget unzip
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: 
+          name: pokemon-emerald-build
+          path: |
+            pokeemerald.gba
+            pokeemerald.elf
+            pokeemerald.map
+          retention-days: 90
 
-        # devkitARM installieren (standard devkitPro install script)
-        sudo mkdir -p /opt/devkitpro
-        sudo chown $USER /opt/devkitpro
-        wget https://apt.devkitpro.org/install-devkitpro-pacman
-        chmod +x install-devkitpro-pacman
-        sudo ./install-devkitpro-pacman
-
-        sudo dkp-pacman -Sy --noconfirm devkitARM general-tools
-
-        export DEVKITPRO=/opt/devkitpro
-        export DEVKITARM=/opt/devkitpro/devkitARM
-        echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
-        echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
-
-    - name: Build ROM
-      run: |
-        make clean
-        make
-
-    - name: Upload built ROM
-      uses: actions/upload-artifact@v3
-      with:
-        name: Built-ROM
-        path: "*.gba"
+      - name: Verify ROM checksum
+        run: make compare
