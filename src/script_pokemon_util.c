@@ -77,18 +77,16 @@ u8 ScriptGiveMon(u16 species, u8 level, u16 item, u32 unused1, u32 unused2, u8 o
     u8 heldItem[2];
     struct Pokemon mon;
 
-    // Wenn otIdType == 0, verwende OT_ID_PLAYER_ID (Standard)
-    // Wenn otIdType == 1, verwende OT_ID_SHINY
     u8 finalOtIdType = (otIdType == 1) ? OT_ID_SHINY : OT_ID_PLAYER_ID;
     
-    CreateMon(&mon, species, level, USE_RANDOM_IVS, FALSE, 0, finalOtIdType, 0);
+    // fixedIV = 31 bedeutet alle IVs sind 31 (perfect)
+    CreateMon(&mon, species, level, 31, FALSE, 0, finalOtIdType, 0);
     heldItem[0] = item;
     heldItem[1] = item >> 8;
     SetMonData(&mon, MON_DATA_HELD_ITEM, heldItem);
     sentToPc = GiveMonToPlayer(&mon);
     nationalDexNum = SpeciesToNationalPokedexNum(species);
 
-    // Don't set Pokédex flag for MON_CANT_GIVE
     switch(sentToPc)
     {
     case MON_GIVEN_TO_PARTY:
